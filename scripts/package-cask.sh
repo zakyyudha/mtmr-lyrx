@@ -23,6 +23,7 @@ swift build --package-path "$ROOT_DIR/macos/mtmr-lyrx-menu" -c release
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$SWIFT_BIN" "$APP_DIR/Contents/MacOS/${APP_NAME}"
+cp "$ROOT_DIR/macos/mtmr-lyrx-menu/Sources/MTMRLyrxMenu/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 chmod 0755 "$APP_DIR/Contents/MacOS/${APP_NAME}"
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
@@ -40,6 +41,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <string>${APP_NAME}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleShortVersionString</key>
   <string>${VERSION}</string>
   <key>CFBundleVersion</key>

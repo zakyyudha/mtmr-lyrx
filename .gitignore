@@ -1,4 +1,3 @@
-
 # SwiftPM build artifacts
 macos/mtmr-lyrx-menu/.build/
 
@@ -7,3 +6,6 @@ dist/
 
 # Local build binary
 /mtmr-lyrx
+
+# macOS metadata
+.DS_Store

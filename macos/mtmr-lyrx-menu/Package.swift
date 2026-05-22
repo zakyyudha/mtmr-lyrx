@@ -9,7 +9,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "MTMRLyrx",
-            path: "Sources/MTMRLyrxMenu"
+            path: "Sources/MTMRLyrxMenu",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )
