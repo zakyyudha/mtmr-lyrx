@@ -1,0 +1,9 @@
+
+# SwiftPM build artifacts
+macos/mtmr-lyrx-menu/.build/
+
+# Release artifacts
+dist/
+
+# Local build binary
+/mtmr-lyrx
