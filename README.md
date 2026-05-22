@@ -11,20 +11,25 @@ MTMR only reads a local file. Spotify/LRCLIB calls never run inside MTMR.
 
 ## Requirements
 
-- macOS
-- Go 1.21+ for building from source
-- MTMR installed for Touch Bar output
+- macOS 13+ for the menu bar app
+- [Homebrew](https://brew.sh/) for the recommended install
+- [MTMR](https://github.com/Toxblh/MTMR) installed for Touch Bar output
 - Spotify account + Spotify Developer app
-- Optional: macOS 13+ and Swift 5.9+ for menu bar controller
+- Go 1.21+ and Swift 5.9+ only if building from source
 
 ## Quick Start
 
+Install app + CLI with Homebrew:
+
 ```bash
-git clone https://github.com/zakyyudha/mtmr-lyrx.git
-cd mtmr-lyrx
-go build -o mtmr-lyrx ./cmd/mtmr-lyrx
-./mtmr-lyrx config init
+brew tap zakyyudha/mtmr-lyrx https://github.com/zakyyudha/mtmr-lyrx
+brew install --cask mtmr-lyrx
 ```
+
+This installs:
+
+- `MTMRLyrx.app` in `/Applications`
+- `mtmr-lyrx` CLI in Homebrew's `bin`
 
 Create Spotify app:
 
@@ -36,14 +41,14 @@ Create Spotify app:
 Login:
 
 ```bash
-SPOTIFY_CLIENT_ID=your-id SPOTIFY_CLIENT_SECRET=your-secret ./mtmr-lyrx login
-./mtmr-lyrx status
+SPOTIFY_CLIENT_ID=your-id SPOTIFY_CLIENT_SECRET=your-secret mtmr-lyrx login
+mtmr-lyrx status
 ```
 
 Install MTMR helper and copy printed JSON into MTMR `items.json`:
 
 ```bash
-./mtmr-lyrx mtmr-config --install
+mtmr-lyrx mtmr-config --install
 ```
 
 MTMR config path:
@@ -52,60 +57,44 @@ MTMR config path:
 ~/Library/Application Support/MTMR/items.json
 ```
 
-Run daemon:
+Open the menu bar app:
 
 ```bash
-./mtmr-lyrx run
+open -a MTMRLyrx
+```
+
+Or run daemon from terminal:
+
+```bash
+mtmr-lyrx run
 ```
 
 Play Spotify. Current lyric line appears on Touch Bar.
 
 ## Installation
 
-### Homebrew cask (app + CLI)
+### Homebrew cask (recommended)
 
-Recommended after publishing the `v0.1.0` GitHub Release:
+Install both menu bar app and CLI:
 
 ```bash
-brew tap zakyyudha/mtmr-lyrx
+brew tap zakyyudha/mtmr-lyrx https://github.com/zakyyudha/mtmr-lyrx
 brew install --cask mtmr-lyrx
 ```
 
-The cask installs both:
+The cask installs:
 
 - `MTMRLyrx.app` into `/Applications`
 - `mtmr-lyrx` CLI into Homebrew's `bin`
 
-Cask definition:
-
-```text
-Casks/mtmr-lyrx.rb
-```
-
-Build the cask artifact locally:
+After install:
 
 ```bash
-make cask
-# or explicit:
-make cask VERSION=0.1.0
+mtmr-lyrx --version
+open -a MTMRLyrx
 ```
 
-This creates:
-
-```text
-dist/MTMRLyrx-0.1.0-macos.zip
-dist/MTMRLyrx-0.1.0-macos.zip.sha256
-```
-
-Upload the zip to GitHub Releases at:
-
-```text
-https://github.com/zakyyudha/mtmr-lyrx/releases/download/v0.1.0/MTMRLyrx-0.1.0-macos.zip
-```
-
-`Casks/mtmr-lyrx.rb` currently pins the SHA-256 for the generated `0.1.0` cask zip. If you rebuild the zip, update the cask `sha256` from `dist/MTMRLyrx-0.1.0-macos.zip.sha256`.
-
-**Note:** The app is currently unsigned. Homebrew cask can install it, but macOS Gatekeeper may require right-click → Open. Signed/notarized app release is future work.
+**Note:** The app is currently unsigned. macOS Gatekeeper may require right-click → Open on first launch. Signed/notarized app release is future work.
 
 ### Build from source
 
