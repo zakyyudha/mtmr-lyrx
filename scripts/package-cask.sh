@@ -54,6 +54,10 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Ad-hoc sign the unsigned test build so macOS recognizes the app bundle as signed.
+# Public releases should use Developer ID signing + notarization instead.
+/usr/bin/codesign --force --deep --sign - "$APP_DIR"
+
 rm -f "$ZIP_PATH"
 (
   cd "$DIST_DIR"
