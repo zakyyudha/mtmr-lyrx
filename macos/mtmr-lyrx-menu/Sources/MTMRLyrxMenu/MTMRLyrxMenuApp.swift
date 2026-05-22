@@ -11,25 +11,24 @@ struct MTMRLyrxMenuApp: App {
                 .environmentObject(appState)
         } label: {
             Image(nsImage: menuBarIcon())
-                .resizable()
-                .scaledToFit()
-                .frame(width: 18, height: 18)
         }
         .menuBarExtraStyle(.window)
     }
 }
 
 private func menuBarIcon() -> NSImage {
-    if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+    if let url = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "png"),
        let image = NSImage(contentsOf: url) {
+        image.size = NSSize(width: 18, height: 18)
         image.isTemplate = false
         return image
     }
 
     if let fallback = NSImage(systemSymbolName: "music.note", accessibilityDescription: "mtmr-lyrx") {
+        fallback.size = NSSize(width: 18, height: 18)
         fallback.isTemplate = true
         return fallback
     }
 
-    return NSImage()
+    return NSImage(size: NSSize(width: 18, height: 18))
 }

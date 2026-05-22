@@ -24,6 +24,7 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$SWIFT_BIN" "$APP_DIR/Contents/MacOS/${APP_NAME}"
 cp "$ROOT_DIR/macos/mtmr-lyrx-menu/Sources/MTMRLyrxMenu/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+cp "$ROOT_DIR/macos/mtmr-lyrx-menu/Sources/MTMRLyrxMenu/Resources/MenuBarIcon.png" "$APP_DIR/Contents/Resources/MenuBarIcon.png"
 chmod 0755 "$APP_DIR/Contents/MacOS/${APP_NAME}"
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
