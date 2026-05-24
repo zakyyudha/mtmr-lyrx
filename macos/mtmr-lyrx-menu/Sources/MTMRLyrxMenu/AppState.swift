@@ -44,6 +44,11 @@ final class AppState: ObservableObject {
         return "\(home)/.config/mtmr-lyrx/cache/current.txt"
     }()
 
+    private let statusFilePath: String = {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return "\(home)/.config/mtmr-lyrx/cache/status.json"
+    }()
+
     // PID file — written on daemon start, read on app launch to reattach
     private let pidFilePath: String = {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -249,16 +254,13 @@ final class AppState: ObservableObject {
             lastStateFileMTime = mtime
         }
 
-        guard !binaryPath.isEmpty else { return }
-
-        let bin = binaryPath
-        let output = await Task.detached(priority: .background) {
-            try? SystemCommandRunner().run(bin, ["status", "--json"])
-        }.value
-
-        guard let output,
-              let data = output.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: statusFilePath)),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            if daemonRunning {
+                statusSummary = "Daemon running, waiting for status"
+            }
+            return
+        }
 
         loggedIn = json["logged_in"] as? Bool ?? false
         tokenValid = json["token_valid"] as? Bool ?? false

@@ -10,6 +10,7 @@ BUNDLE_ID="dev.zakyyudha.mtmr-lyrx"
 CLI_BIN="$DIST_DIR/mtmr-lyrx"
 SWIFT_BIN="$ROOT_DIR/macos/mtmr-lyrx-menu/.build/release/${APP_NAME}"
 ZIP_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-macos.zip"
+PLIST_VERSION="${VERSION#v}"
 
 mkdir -p "$DIST_DIR"
 
@@ -45,9 +46,9 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundleShortVersionString</key>
-  <string>${VERSION}</string>
+  <string>${PLIST_VERSION}</string>
   <key>CFBundleVersion</key>
-  <string>${VERSION}</string>
+  <string>${PLIST_VERSION}</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>LSUIElement</key>

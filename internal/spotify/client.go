@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -116,11 +115,7 @@ func (c *Client) fetchPlayback(ctx context.Context, url string) (PlaybackState, 
 	case http.StatusForbidden:
 		return PlaybackState{}, ErrForbidden
 	case http.StatusTooManyRequests:
-		retryAfter := resp.Header.Get("Retry-After")
-		if retryAfter != "" {
-			return PlaybackState{}, fmt.Errorf("%w: retry after %s seconds", ErrRateLimited, retryAfter)
-		}
-		return PlaybackState{}, ErrRateLimited
+		return PlaybackState{}, NewRateLimitError(resp.Header.Get("Retry-After"))
 	}
 	if resp.StatusCode >= 500 {
 		return PlaybackState{}, fmt.Errorf("%w: HTTP %d", ErrProvider, resp.StatusCode)
@@ -139,19 +134,19 @@ func (c *Client) fetchPlayback(ctx context.Context, url string) (PlaybackState, 
 
 // rawPlayback is the JSON shape returned by Spotify playback endpoints.
 type rawPlayback struct {
-	IsPlaying            bool        `json:"is_playing"`
-	ProgressMS           int         `json:"progress_ms"`
-	CurrentlyPlayingType string      `json:"currently_playing_type"`
-	Item                 *rawItem    `json:"item"`
-	Device               *rawDevice  `json:"device"`
+	IsPlaying            bool       `json:"is_playing"`
+	ProgressMS           int        `json:"progress_ms"`
+	CurrentlyPlayingType string     `json:"currently_playing_type"`
+	Item                 *rawItem   `json:"item"`
+	Device               *rawDevice `json:"device"`
 }
 
 type rawItem struct {
-	ID         string      `json:"id"`
-	Name       string      `json:"name"`
-	DurationMS int         `json:"duration_ms"`
-	Artists    []rawArtist `json:"artists"`
-	Album      *rawAlbum   `json:"album"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	DurationMS  int               `json:"duration_ms"`
+	Artists     []rawArtist       `json:"artists"`
+	Album       *rawAlbum         `json:"album"`
 	ExternalIDs map[string]string `json:"external_ids"`
 }
 
@@ -171,10 +166,10 @@ type rawDevice struct {
 
 func (r rawPlayback) toPlaybackState() PlaybackState {
 	s := PlaybackState{
-		IsPlaying:    r.IsPlaying,
-		ProgressMS:   r.ProgressMS,
-		ItemType:     r.CurrentlyPlayingType,
-		FetchedAt:    time.Now(),
+		IsPlaying:  r.IsPlaying,
+		ProgressMS: r.ProgressMS,
+		ItemType:   r.CurrentlyPlayingType,
+		FetchedAt:  time.Now(),
 	}
 
 	if r.Device != nil {
@@ -199,27 +194,4 @@ func (r rawPlayback) toPlaybackState() PlaybackState {
 	}
 
 	return s
-}
-
-// RetryAfterSeconds parses the Retry-After value from a rate-limit error message.
-// Returns 0 if not parseable.
-func RetryAfterSeconds(err error) int {
-	if err == nil {
-		return 0
-	}
-	msg := err.Error()
-	// Look for "retry after N seconds"
-	for i := len(msg) - 1; i >= 0; i-- {
-		if msg[i] >= '0' && msg[i] <= '9' {
-			j := i
-			for j > 0 && msg[j-1] >= '0' && msg[j-1] <= '9' {
-				j--
-			}
-			n, parseErr := strconv.Atoi(msg[j : i+1])
-			if parseErr == nil {
-				return n
-			}
-		}
-	}
-	return 0
 }

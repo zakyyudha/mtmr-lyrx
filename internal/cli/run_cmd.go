@@ -199,41 +199,104 @@ func runSpotifyLoop(cmd *cobra.Command, opts *Options, cfg config.Config, stateF
 
 	configPath := configPathFromOpts(opts)
 	configModTime := fileModTime(configPath)
+	cacheDir := cfg.Cache.Dir
+	if cacheDir == "" {
+		cacheDir = config.DefaultCacheDir()
+	}
+	rateLimitPath := spotify.RateLimitCachePath(cacheDir)
 	placeholder := cfg.Display.Placeholder
 	displaySpeedMS := cfg.Display.ScrollSpeedMS
+
+	statusPath := display.DefaultStatusFile()
 
 	var (
 		currentTrackID string
 		currentResult  *lyrics.LookupResult
 		anchor         spotify.ProgressAnchor
 		prevState      spotify.PlaybackState
+		nextPollAt     time.Time
 	)
 
-	pollTicker := time.NewTicker(time.Duration(cfg.Spotify.PollIntervalMS) * time.Millisecond)
 	displayTicker := time.NewTicker(time.Duration(displaySpeedMS) * time.Millisecond)
-	defer pollTicker.Stop()
 	defer displayTicker.Stop()
 
 	tick := 0
 
+	writeStatus := func(state spotify.PlaybackState, errText string) {
+		rateLimitUntil := spotify.CachedRateLimitUntil(rateLimitPath)
+		_ = display.WriteStatusFile(statusPath, display.NewDaemonStatus(state, true, spotify.IsTokenValid(tok), rateLimitUntil, errText))
+	}
+
+	scheduleNextPoll := func(state spotify.PlaybackState) {
+		now := time.Now()
+		if state.IsEmpty() {
+			nextPollAt = now.Add(60 * time.Second)
+			return
+		}
+		if !state.IsPlaying {
+			nextPollAt = now.Add(45 * time.Second)
+			return
+		}
+		currentMS := spotify.NewProgressAnchor(state).Current(now)
+		remaining := state.DurationMS - currentMS
+		if state.DurationMS > 0 && remaining > 0 && remaining < 30_000 {
+			nextPollAt = now.Add(time.Duration(remaining+1000) * time.Millisecond)
+			return
+		}
+		nextPollAt = now.Add(20 * time.Second)
+	}
+
 	doSpotifyPoll := func() {
-		state, err := spotifyClient.CurrentlyPlaying(ctx)
-		if err != nil {
-			switch {
-			case errors.Is(err, spotify.ErrNoContent):
-				_ = display.WriteStateFile(stateFile, fallbackNoTrack)
-			case errors.Is(err, spotify.ErrUnauthorized):
-				_ = display.WriteStateFile(stateFile, fallbackAuthNeeded)
-			case errors.Is(err, spotify.ErrRateLimited):
-				// keep current display
-			default:
-				_ = display.WriteStateFile(stateFile, fallbackNoDevice)
+		if err := spotify.CachedRateLimitError(rateLimitPath, time.Now()); err != nil {
+			writeStatus(prevState, err.Error())
+			if retryAfter := spotify.RetryAfterSeconds(err); retryAfter > 0 {
+				nextPollAt = time.Now().Add(time.Duration(retryAfter) * time.Second)
+			} else {
+				nextPollAt = time.Now().Add(60 * time.Second)
 			}
 			if opts.Debug {
 				fmt.Fprintf(os.Stderr, "debug: spotify poll error: %v\n", err)
 			}
 			return
 		}
+
+		state, err := spotifyClient.CurrentlyPlaying(ctx)
+		if err != nil {
+			switch {
+			case errors.Is(err, spotify.ErrNoContent):
+				prevState = spotify.PlaybackState{}
+				anchor = spotify.ProgressAnchor{}
+				currentResult = nil
+				currentTrackID = ""
+				_ = display.WriteStateFile(stateFile, fallbackNoTrack)
+				writeStatus(prevState, "no current track")
+				nextPollAt = time.Now().Add(60 * time.Second)
+			case errors.Is(err, spotify.ErrUnauthorized):
+				_ = display.WriteStateFile(stateFile, fallbackAuthNeeded)
+				writeStatus(prevState, "unauthorized — run 'mtmr-lyrx login' to re-authenticate")
+				nextPollAt = time.Now().Add(60 * time.Second)
+			case errors.Is(err, spotify.ErrRateLimited):
+				if retryAfter := spotify.RetryAfterSeconds(err); retryAfter > 0 {
+					until := time.Now().Add(time.Duration(retryAfter) * time.Second)
+					_ = spotify.SaveRateLimitUntil(rateLimitPath, until)
+					nextPollAt = until
+				} else {
+					nextPollAt = time.Now().Add(60 * time.Second)
+				}
+				writeStatus(prevState, err.Error())
+				// keep current display
+			default:
+				_ = display.WriteStateFile(stateFile, fallbackNoDevice)
+				writeStatus(prevState, err.Error())
+				nextPollAt = time.Now().Add(60 * time.Second)
+			}
+			if opts.Debug {
+				fmt.Fprintf(os.Stderr, "debug: spotify poll error: %v\n", err)
+			}
+			return
+		}
+
+		spotify.ClearRateLimit(rateLimitPath)
 
 		predicted := anchor.Current(time.Now())
 		needResync := spotify.ShouldResync(prevState, state, predicted, cfg.Spotify.SeekResyncThresholdMS)
@@ -242,6 +305,8 @@ func runSpotifyLoop(cmd *cobra.Command, opts *Options, cfg config.Config, stateF
 			currentTrackID = state.TrackID
 			anchor = spotify.NewProgressAnchor(state)
 			prevState = state
+			writeStatus(prevState, "")
+			scheduleNextPoll(prevState)
 
 			if !state.IsMusicTrack() {
 				_ = display.WriteStateFile(stateFile, fallbackNotMusic)
@@ -262,6 +327,8 @@ func runSpotifyLoop(cmd *cobra.Command, opts *Options, cfg config.Config, stateF
 		} else {
 			anchor = spotify.NewProgressAnchor(state)
 			prevState = state
+			writeStatus(prevState, "")
+			scheduleNextPoll(prevState)
 		}
 	}
 
@@ -280,9 +347,10 @@ func runSpotifyLoop(cmd *cobra.Command, opts *Options, cfg config.Config, stateF
 		case <-ctx.Done():
 			_ = display.WriteStateFile(stateFile, placeholder)
 			return nil
-		case <-pollTicker.C:
-			doSpotifyPoll()
 		case <-displayTicker.C:
+			if !nextPollAt.IsZero() && !time.Now().Before(nextPollAt) {
+				doSpotifyPoll()
+			}
 			if mt := fileModTime(configPath); !mt.IsZero() && mt.After(configModTime) {
 				if updated, err := config.Load(configPath); err == nil {
 					configModTime = mt

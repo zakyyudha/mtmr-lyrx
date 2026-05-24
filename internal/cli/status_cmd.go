@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/zakyyudha/mtmr-lyrx/internal/config"
 	"github.com/zakyyudha/mtmr-lyrx/internal/spotify"
 )
 
@@ -50,6 +51,16 @@ func newStatusCommand(opts *Options) *cobra.Command {
 			out.LoggedIn = true
 			out.TokenValid = spotify.IsTokenValid(tok)
 
+			cacheDir := cfg.Cache.Dir
+			if cacheDir == "" {
+				cacheDir = config.DefaultCacheDir()
+			}
+			rateLimitPath := spotify.RateLimitCachePath(cacheDir)
+			if err := spotify.CachedRateLimitError(rateLimitPath, time.Now()); err != nil {
+				out.Error = err.Error()
+				return printStatus(cmd, opts, out)
+			}
+
 			// Try to fetch current playback
 			clientID, clientSecret := spotify.Credentials(cfg.Spotify)
 			oauthCfg := spotify.OAuthConfig(clientID, clientSecret, cfg.Spotify.RedirectURL)
@@ -66,10 +77,16 @@ func newStatusCommand(opts *Options) *cobra.Command {
 				} else if errors.Is(err, spotify.ErrUnauthorized) {
 					out.Error = "unauthorized — run 'mtmr-lyrx login' to re-authenticate"
 				} else {
+					if errors.Is(err, spotify.ErrRateLimited) {
+						if retryAfter := spotify.RetryAfterSeconds(err); retryAfter > 0 {
+							_ = spotify.SaveRateLimitUntil(rateLimitPath, time.Now().Add(time.Duration(retryAfter)*time.Second))
+						}
+					}
 					out.Error = err.Error()
 				}
 				return printStatus(cmd, opts, out)
 			}
+			spotify.ClearRateLimit(rateLimitPath)
 
 			out.TrackID = state.TrackID
 			out.TrackName = state.TrackName

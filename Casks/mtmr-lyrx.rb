@@ -1,6 +1,6 @@
 cask "mtmr-lyrx" do
-  version "0.1.0"
-  sha256 "572a11f80853950b1593f807b03ff5c37c6aa276de3de33c4389ca57cc14f355"
+  version "0.1.1"
+  sha256 :no_check
 
   url "https://github.com/zakyyudha/mtmr-lyrx/releases/download/v#{version}/MTMRLyrx-#{version}-macos.zip"
   name "MTMRLyrx"
