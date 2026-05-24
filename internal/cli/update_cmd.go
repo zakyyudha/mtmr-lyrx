@@ -33,7 +33,11 @@ func newUpdateCheckCommand(opts *Options) *cobra.Command {
 				APIBaseURL: apiBaseURL,
 				Repo:       repo,
 			}
-			res, err := c.Check(cmd.Context(), version, updater.CheckOptions{Version: version})
+			currentVersion := version
+			if currentVersion == "" {
+				currentVersion = cmd.Root().Version
+			}
+			res, err := c.Check(cmd.Context(), currentVersion, updater.CheckOptions{Version: version})
 			if err != nil && res.LatestVersion == "" {
 				// hard network/parse error — still emit JSON if requested
 				if opts.JSON {

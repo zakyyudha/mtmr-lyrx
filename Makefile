@@ -26,7 +26,7 @@ cask: clean
 	scripts/package-cask.sh $(VERSION)
 
 checksums:
-	shasum -a 256 $(DIST_DIR)/*.tar.gz > $(DIST_DIR)/checksums.txt
+	cd $(DIST_DIR) && shasum -a 256 *.tar.gz > checksums.txt
 
 clean:
 	rm -rf $(DIST_DIR)

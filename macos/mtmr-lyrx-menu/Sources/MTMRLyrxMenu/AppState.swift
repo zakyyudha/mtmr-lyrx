@@ -457,7 +457,12 @@ final class AppState: ObservableObject {
         updateInFlight = true
         let bin = binaryPath
         Task.detached(priority: .background) {
-            let output = try? SystemCommandRunner().run(bin, ["update", "install", "--yes", "--json"])
+            let output: String?
+            do {
+                output = try SystemCommandRunner().run(bin, ["update", "install", "--yes", "--json"], timeoutSeconds: 120)
+            } catch {
+                output = nil
+            }
             await MainActor.run {
                 self.updateInFlight = false
                 guard let output,
